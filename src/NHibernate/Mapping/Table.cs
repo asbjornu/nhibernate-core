@@ -961,7 +961,7 @@ namespace NHibernate.Mapping
 
 		public override string ToString()
 		{
-			StringBuilder buf = new StringBuilder().Append(GetType().FullName).Append('(');
+			StringBuilder buf = new StringBuilder(GetType().FullName).Append('(');
 			if (Catalog != null)
 			{
 				buf.Append(Catalog + ".");
