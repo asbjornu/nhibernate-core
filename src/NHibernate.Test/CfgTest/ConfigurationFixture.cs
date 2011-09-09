@@ -324,16 +324,8 @@ namespace NHibernate.Test.CfgTest
 </hibernate-mapping>";
 
 			Configuration cfg = new Configuration();
-
-			try
-			{
-				cfg.AddXmlString(hbm).BuildSessionFactory();
-				Assert.Fail("Validation should have failed");
-			}
-			catch (MappingException e)
-			{
-				Assert.IsTrue(e is InvalidProxyTypeException);
-			}
+			
+			Assert.Throws<InvalidProxyTypeException>(() => cfg.AddXmlString(hbm).BuildSessionFactory(), "Validation should have failed with a InvalidProxyTypeException");
 		}
 
 		[Test]
