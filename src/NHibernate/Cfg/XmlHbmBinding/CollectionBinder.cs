@@ -738,7 +738,7 @@ namespace NHibernate.Cfg.XmlHbmBinding
 				string associatedEntityName = oneToMany.ReferencedEntityName;
 				PersistentClass persistentClass;
 				if (persistentClasses.TryGetValue(associatedEntityName, out persistentClass) == false)
-					throw new MappingException("Association references unmapped class: " + associatedEntityName);
+					throw new MappingException("Association from " + oneToMany.Table + " references unmapped class: " + associatedEntityName);
 				oneToMany.AssociatedClass = persistentClass;
 				model.CollectionTable = persistentClass.Table;
 				if (model.IsInverse && persistentClass.JoinClosureSpan > 0)
