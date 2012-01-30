@@ -1,10 +1,10 @@
 using System;
 using System.Data;
-using System.Text;
 
 using NHibernate.Engine;
 using NHibernate.SqlCommand;
 using NHibernate.SqlTypes;
+using NHibernate.AdoNet.Util;
 
 namespace NHibernate.Id.Enhanced
 {
@@ -13,52 +13,60 @@ namespace NHibernate.Id.Enhanced
 	/// </summary>
 	public class TableStructure : TransactionHelper, IDatabaseStructure
 	{
-		private static readonly IInternalLogger log = LoggerProvider.LoggerFor(typeof (IDatabaseStructure));
-		private static readonly IInternalLogger SqlLog = LoggerProvider.LoggerFor("NHibernate.SQL");
-		private readonly int incrementSize;
-		private readonly int initialValue;
-		private readonly string tableName;
-		private readonly string valueColumnName;
-		private int accessCounter;
-		private bool applyIncrementSizeToSourceValues;
-		private readonly SqlString select;
-		private readonly SqlString update;
+		private static readonly IInternalLogger Log = LoggerProvider.LoggerFor(typeof(IDatabaseStructure));
 
-		public TableStructure(Dialect.Dialect dialect, string tableName, string valueColumnName, int initialValue,
-		                      int incrementSize)
+		private readonly int _incrementSize;
+		private readonly int _initialValue;
+		private readonly string _tableName;
+		private readonly string _valueColumnName;
+
+		private readonly SqlString _selectQuery;
+		private readonly SqlString _updateQuery;
+		private readonly SqlType[] _updateParameterTypes;
+
+		private int _accessCounter;
+		private bool _applyIncrementSizeToSourceValues;
+
+		public TableStructure(Dialect.Dialect dialect, string tableName, string valueColumnName, int initialValue, int incrementSize)
 		{
-			this.tableName = tableName;
-			this.valueColumnName = valueColumnName;
-			this.initialValue = initialValue;
-			this.incrementSize = incrementSize;
+			_tableName = tableName;
+			_valueColumnName = valueColumnName;
+			_initialValue = initialValue;
+			_incrementSize = incrementSize;
 
-			SqlStringBuilder b = new SqlStringBuilder();
-			b.Add("select ").Add(valueColumnName).Add(" id_val").Add(" from ").Add(dialect.AppendLockHint(LockMode.Upgrade,
-			                                                                                              tableName)).Add(
-				dialect.ForUpdateString);
-			select = b.ToSqlString();
+			var b = new SqlStringBuilder();
+			b.Add("select ").Add(valueColumnName).Add(" as id_val").Add(" from ").Add(dialect.AppendLockHint(LockMode.Upgrade, tableName))
+				.Add(dialect.ForUpdateString);
+
+			_selectQuery = b.ToSqlString();
 
 			b = new SqlStringBuilder();
 			b.Add("update ").Add(tableName).Add(" set ").Add(valueColumnName).Add(" = ").Add(Parameter.Placeholder).Add(" where ")
 				.Add(valueColumnName).Add(" = ").Add(Parameter.Placeholder);
-			update = b.ToSqlString();
+			_updateQuery = b.ToSqlString();
+			_updateParameterTypes = new[]
+			{
+				SqlTypeFactory.Int64,
+				SqlTypeFactory.Int64,
+			};
+
 		}
 
 		#region Implementation of IDatabaseStructure
 
 		public string Name
 		{
-			get { return tableName; }
+			get { return _tableName; }
 		}
 
 		public int TimesAccessed
 		{
-			get { return accessCounter; }
+			get { return _accessCounter; }
 		}
 
 		public int IncrementSize
 		{
-			get { return incrementSize; }
+			get { return _incrementSize; }
 		}
 
 		public virtual IAccessCallback BuildCallback(ISessionImplementor session)
@@ -68,31 +76,21 @@ namespace NHibernate.Id.Enhanced
 
 		public virtual void Prepare(IOptimizer optimizer)
 		{
-			applyIncrementSizeToSourceValues = optimizer.ApplyIncrementSizeToSourceValues;
+			_applyIncrementSizeToSourceValues = optimizer.ApplyIncrementSizeToSourceValues;
 		}
 
 		public virtual string[] SqlCreateStrings(Dialect.Dialect dialect)
 		{
-			return new String[]
-			       	{
-			       		"create table " + tableName + " ( " + valueColumnName + " " + dialect.GetTypeName(SqlTypeFactory.Int64)
-			       		+ " )", "insert into " + tableName + " values ( " + initialValue + " )"
-			       	};
+			return new[]
+			{
+				"create table " + _tableName + " ( " + _valueColumnName + " " + dialect.GetTypeName(SqlTypeFactory.Int64)
+				+ " )", "insert into " + _tableName + " values ( " + _initialValue + " )"
+			};
 		}
 
 		public virtual string[] SqlDropStrings(Dialect.Dialect dialect)
 		{
-			StringBuilder sqlDropString = new StringBuilder().Append("drop table ");
-			if (dialect.SupportsIfExistsBeforeTableName)
-			{
-				sqlDropString.Append("if exists ");
-			}
-			sqlDropString.Append(tableName).Append(dialect.CascadeConstraintsString);
-			if (dialect.SupportsIfExistsAfterTableName)
-			{
-				sqlDropString.Append(" if exists");
-			}
-			return new String[] {sqlDropString.ToString()};
+			return new[] {dialect.GetDropTableString(_tableName) };
 		}
 
 		#endregion
@@ -102,66 +100,62 @@ namespace NHibernate.Id.Enhanced
 		public override object DoWorkInCurrentTransaction(ISessionImplementor session, IDbConnection conn, IDbTransaction transaction)
 		{
 			long result;
-			int rows;
+			int updatedRows;
+
 			do
 			{
-				string query = select.ToString();
-				SqlLog.Debug(query);
-				IDbCommand qps = conn.CreateCommand();
-				IDataReader rs = null;
-				qps.CommandText = query;
-				qps.CommandType = CommandType.Text;
-				qps.Transaction = conn.BeginTransaction(); 
 				try
 				{
-					rs = qps.ExecuteReader();
-					if (!rs.Read())
+					object selectedValue;
+
+					IDbCommand selectCmd = session.Factory.ConnectionProvider.Driver.GenerateCommand(CommandType.Text, _selectQuery, SqlTypeFactory.NoTypes);
+					using (selectCmd)
 					{
-						string err = "could not read a hi value - you need to populate the table: " + tableName;
-						log.Error(err);
+						selectCmd.Connection = conn;
+						selectCmd.Transaction = transaction;
+						PersistentIdGeneratorParmsNames.SqlStatementLogger.LogCommand(selectCmd, FormatStyle.Basic);
+
+						selectedValue = selectCmd.ExecuteScalar();
+					}
+
+					if (selectedValue ==null)
+					{
+						string err = "could not read a hi value - you need to populate the table: " + _tableName;
+						Log.Error(err);
 						throw new IdentifierGenerationException(err);
 					}
-					result = rs.GetInt64(0);
-					rs.Close();
+					result = Convert.ToInt64(selectedValue);
 				}
 				catch (Exception sqle)
 				{
-					log.Error("could not read a hi value", sqle);
+					Log.Error("could not read a hi value", sqle);
 					throw;
 				}
-				finally
-				{
-					if (rs != null) rs.Close();
-					qps.Dispose();
-				}
 
-				query = update.ToString();
-				
-				IDbCommand ups = conn.CreateCommand();
-				ups.CommandType = CommandType.Text;
-				ups.CommandText = query;
-				ups.Connection = conn;
-				ups.Transaction = conn.BeginTransaction();
 				try
 				{
-					int increment = applyIncrementSizeToSourceValues ? incrementSize : 1;
-					((IDataParameter) ups.Parameters[0]).Value = result + increment;
-					((IDataParameter)ups.Parameters[1]).Value = result;
-					rows = ups.ExecuteNonQuery();
+					IDbCommand updateCmd = session.Factory.ConnectionProvider.Driver.GenerateCommand(CommandType.Text, _updateQuery, _updateParameterTypes);
+					using (updateCmd)
+					{
+						updateCmd.Connection = conn;
+						updateCmd.Transaction = transaction;
+						PersistentIdGeneratorParmsNames.SqlStatementLogger.LogCommand(updateCmd, FormatStyle.Basic);
+
+						int increment = _applyIncrementSizeToSourceValues ? _incrementSize : 1;
+						((IDataParameter)updateCmd.Parameters[0]).Value = result + increment;
+						((IDataParameter)updateCmd.Parameters[1]).Value = result;
+						updatedRows = updateCmd.ExecuteNonQuery();
+					}
 				}
 				catch (Exception sqle)
 				{
-					log.Error("could not update hi value in: " + tableName, sqle);
+					Log.Error("could not update hi value in: " + _tableName, sqle);
 					throw;
 				}
-				finally
-				{
-					ups.Dispose();
-				}
 			}
-			while (rows == 0);
+			while (updatedRows == 0);
 
-			accessCounter++;
+			_accessCounter++;
 
 			return result;
 		}
@@ -172,27 +166,25 @@ namespace NHibernate.Id.Enhanced
 
 		private class TableAccessCallback : IAccessCallback
 		{
-			private readonly TableStructure owner;
-			private readonly ISessionImplementor session;
+			private readonly TableStructure _owner;
+			private readonly ISessionImplementor _session;
 
 			public TableAccessCallback(ISessionImplementor session, TableStructure owner)
 			{
-				this.session = session;
-				this.owner = owner;
+				_session = session;
+				_owner = owner;
 			}
 
 			#region IAccessCallback Members
 
-			public virtual long NextValue
+			public virtual long GetNextValue()
 			{
-				get { return Convert.ToInt64(owner.DoWorkInNewTransaction(session)); }
+				return Convert.ToInt64(_owner.DoWorkInNewTransaction(_session));
 			}
 
 			#endregion
 		}
 
 		#endregion
-
-
 	}
 }

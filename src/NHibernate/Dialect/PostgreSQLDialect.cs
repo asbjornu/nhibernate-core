@@ -118,35 +118,45 @@ namespace NHibernate.Dialect
 			get { return true; }
 		}
 
+		/// <summary>
+		/// Supported with SQL 2003 syntax since 7.4, released 2003-11-17. For older versions
+		/// we need to override GetCreateSequenceString(string, int, int) and provide alternative
+		/// syntax, but I don't think we need to bother for such ancient releases (considered EOL).
+		/// </summary>
+		public override bool SupportsPooledSequences
+		{
+			get { return true; }
+		}
+
 		public override bool SupportsLimit
 		{
 			get { return true; }
 		}
 
-        public override bool SupportsLimitOffset
-        {
-            get { return true; }
-        }
+		public override bool SupportsLimitOffset
+		{
+			get { return true; }
+		}
 
-        public override SqlString GetLimitString(SqlString queryString, SqlString offset, SqlString limit)
-        {
-            SqlStringBuilder pagingBuilder = new SqlStringBuilder();
-            pagingBuilder.Add(queryString);
+		public override SqlString GetLimitString(SqlString queryString, SqlString offset, SqlString limit)
+		{
+			SqlStringBuilder pagingBuilder = new SqlStringBuilder();
+			pagingBuilder.Add(queryString);
 
-            if (limit != null)
-            {
-                pagingBuilder.Add(" limit ");
-                pagingBuilder.Add(limit);
-            }
+			if (limit != null)
+			{
+				pagingBuilder.Add(" limit ");
+				pagingBuilder.Add(limit);
+			}
 
-            if (offset != null)
-            {
-                pagingBuilder.Add(" offset ");
-                pagingBuilder.Add(offset);
-            }
+			if (offset != null)
+			{
+				pagingBuilder.Add(" offset ");
+				pagingBuilder.Add(offset);
+			}
 
-            return pagingBuilder.ToSqlString();
-        }
+			return pagingBuilder.ToSqlString();
+		}
 
 		public override string GetForUpdateString(string aliases)
 		{
@@ -207,6 +217,21 @@ namespace NHibernate.Dialect
 		public override IDataBaseSchema GetDataBaseSchema(DbConnection connection)
 		{
 			return new PostgreSQLDataBaseMetadata(connection);
+		}
+
+		public override long TimestampResolutionInTicks
+		{
+			get { return 10L; }   // Microseconds.
+		}
+
+		public override bool SupportsCurrentTimestampSelection
+		{
+			get { return true; }
+		}
+
+		public override string CurrentTimestampSelectString
+		{
+			get { return "SELECT CURRENT_TIMESTAMP"; }
 		}
 	}
 }

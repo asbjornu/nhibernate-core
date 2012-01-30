@@ -3,118 +3,143 @@ using NUnit.Framework;
 
 namespace NHibernate.Test.Linq.ByMethod
 {
-    [TestFixture]
-    public class OrderByTests : LinqTestCase
-    {
-        [Test]
-        public void AscendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        orderby c.CustomerId
-                        select c.CustomerId;
+	[TestFixture]
+	public class OrderByTests : LinqTestCase
+	{
+		[Test]
+		public void GroupByThenOrderBy()
+		{
+			var query = from c in db.Customers
+						group c by c.Address.Country into g
+						orderby g.Key
+						select new { Country = g.Key, Count = g.Count() };
 
-            var ids = query.ToList();
+			var ids = query.ToList();
+			Assert.NotNull(ids);
+			AssertOrderedBy.Ascending(ids, arg => arg.Country);
+		}
+		
+		[Test]
+		public void AscendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						orderby c.CustomerId
+						select c.CustomerId;
 
-            if (ids.Count > 1)
-            {
-                Assert.Greater(ids[1], ids[0]);
-            }
-        }
+			var ids = query.ToList();
 
-        [Test]
-        public void DescendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        orderby c.CustomerId descending
-                        select c.CustomerId;
+			if (ids.Count > 1)
+			{
+				Assert.Greater(ids[1], ids[0]);
+			}
+		}
 
-            var ids = query.ToList();
+		[Test]
+		public void DescendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						orderby c.CustomerId descending
+						select c.CustomerId;
 
-            if (ids.Count > 1)
-            {
-                Assert.Greater(ids[0], ids[1]);
-            }
-        }
+			var ids = query.ToList();
 
-        [Test]
-        [Ignore("NHibernate does not currently support subqueries in select clause (no way to specify a projection from a detached criteria).")]
-        public void AggregateAscendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        orderby c.Orders.Count
-                        select c;
+			if (ids.Count > 1)
+			{
+				Assert.Greater(ids[0], ids[1]);
+			}
+		}
 
-            var customers = query.ToList();
+		[Test]
+		public void OrderByCalculatedAggregatedSubselectProperty()
+		{
+			//NH-2781
+			var result = db.Orders
+				.Select(o => new
+								 {
+									 o.OrderId,
+									 TotalQuantity = o.OrderLines.Sum(c => c.Quantity)
+								 })
+				.OrderBy(s => s.TotalQuantity)
+				.ToList();
 
-            if (customers.Count > 1)
-            {
-                Assert.Less(customers[0].Orders.Count, customers[1].Orders.Count);
-            }
-        }
+			Assert.That(result.Count, Is.EqualTo(830));
 
-        [Test]
-        [Ignore("NHibernate does not currently support subqueries in select clause (no way to specify a projection from a detached criteria).")]
-        public void AggregateDescendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        orderby c.Orders.Count descending
-                        select c;
+			AssertOrderedBy.Ascending(result, s => s.TotalQuantity);
+		}
 
-            var customers = query.ToList();
+		[Test]
+		public void AggregateAscendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						orderby c.Orders.Count
+						select c;
 
-            if (customers.Count > 1)
-            {
-                Assert.Greater(customers[0].Orders.Count, customers[1].Orders.Count);
-            }
-        }
+			var customers = query.ToList();
 
-        [Test]
-        public void ComplexAscendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        where c.Address.Country == "Belgium"
-                        orderby c.Address.Country, c.Address.City
-                        select c.Address.City;
+			// Verify ordering for first 10 customers - to avoid loading all orders.
+			AssertOrderedBy.Ascending(customers.Take(10).ToList(), customer => customer.Orders.Count);
+		}
 
-            var ids = query.ToList();
+		[Test]
+		public void AggregateDescendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						orderby c.Orders.Count descending
+						select c;
 
-            if (ids.Count > 1)
-            {
-                Assert.Greater(ids[1], ids[0]);
-            }
-        }
+			var customers = query.ToList();
 
-        [Test]
-        public void ComplexDescendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        where c.Address.Country == "Belgium"
-                        orderby c.Address.Country descending, c.Address.City descending
-                        select c.Address.City;
+			// Verify ordering for first 10 customers - to avoid loading all orders.
+			AssertOrderedBy.Descending(customers.Take(10).ToList(), customer => customer.Orders.Count);
+		}
 
-            var ids = query.ToList();
+		[Test]
+		public void ComplexAscendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						where c.Address.Country == "Belgium"
+						orderby c.Address.Country, c.Address.City
+						select c.Address.City;
 
-            if (ids.Count > 1)
-            {
-                Assert.Greater(ids[0], ids[1]);
-            }
-        }
+			var ids = query.ToList();
 
-        [Test]
-        public void ComplexAscendingDescendingOrderByClause()
-        {
-            var query = from c in db.Customers
-                        where c.Address.Country == "Belgium"
-                        orderby c.Address.Country ascending, c.Address.City descending
-                        select c.Address.City;
+			if (ids.Count > 1)
+			{
+				Assert.Greater(ids[1], ids[0]);
+			}
+		}
 
-            var ids = query.ToList();
+		[Test]
+		public void ComplexDescendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						where c.Address.Country == "Belgium"
+						orderby c.Address.Country descending, c.Address.City descending
+						select c.Address.City;
 
-            if (ids.Count > 1)
-            {
-                Assert.Greater(ids[0], ids[1]);
-            }
-        }
+			var ids = query.ToList();
+
+			if (ids.Count > 1)
+			{
+				Assert.Greater(ids[0], ids[1]);
+			}
+		}
+
+		[Test]
+		public void ComplexAscendingDescendingOrderByClause()
+		{
+			var query = from c in db.Customers
+						where c.Address.Country == "Belgium"
+						orderby c.Address.Country ascending, c.Address.City descending
+						select c.Address.City;
+
+			var ids = query.ToList();
+
+			if (ids.Count > 1)
+			{
+				Assert.Greater(ids[0], ids[1]);
+			}
+		}
 
 		[Test]
 		public void OrderByDoesNotFilterResultsOnJoin()
@@ -125,8 +150,8 @@ namespace NHibernate.Test.Linq.ByMethod
 			// Check join result.
 			var allAnimals = db.Animals;
 			var orderedAnimals = from a in db.Animals orderby a.Father.SerialNumber select a;
-            // We to ToList() first or it skips the generation of the joins.
+			// We to ToList() first or it skips the generation of the joins.
 			Assert.AreEqual(allAnimals.ToList().Count(), orderedAnimals.ToList().Count());
 		}
-    }
+	}
 }

@@ -114,6 +114,8 @@
     <Compile Include="Cache\Timestamper.cs" />
     <Compile Include="Cache\UpdateTimestampsCache.cs" />
     <Compile Include="CallbackException.cs" />
+    <Compile Include="Cfg\Loquacious\DbIntegrationConfigurationProperties.cs" />
+    <Compile Include="Cfg\Loquacious\IDbIntegrationConfigurationProperties.cs" />
     <Compile Include="Cfg\Loquacious\INamedQueryDefinitionBuilder.cs" />
     <Compile Include="Cfg\MappingsQueue.cs" />
     <Compile Include="Cfg\Configuration.cs" />
@@ -135,7 +137,11 @@
     <Compile Include="Dialect\DB2Dialect.cs" />
     <Compile Include="Dialect\Dialect.cs" />
     <Compile Include="Dialect\FirebirdDialect.cs" />
+    <Compile Include="Dialect\Function\AvgQueryFunctionInfo.cs" />
+    <Compile Include="Dialect\Function\CountQueryFunctionInfo.cs" />
+    <Compile Include="Dialect\Function\SumQueryFunctionInfo.cs" />
     <Compile Include="Dialect\GenericDialect.cs" />
+    <Compile Include="Dialect\InsertGeneratedIdentifierRetrievalMethod.cs" />
     <Compile Include="Dialect\MsSql2000Dialect.cs" />
     <Compile Include="Dialect\MsSql7Dialect.cs" />
     <Compile Include="Dialect\MsSqlAzure2008Dialect.cs" />
@@ -206,6 +212,7 @@
     <Compile Include="Criterion\PropertyExpression.cs" />
     <Compile Include="Criterion\SimpleExpression.cs" />
     <Compile Include="Criterion\SQLCriterion.cs" />
+    <Compile Include="Exceptions\NoOpViolatedConstraintNameExtracter.cs" />
     <Compile Include="FetchMode.cs" />
     <Compile Include="FlushMode.cs" />
     <Compile Include="HibernateException.cs" />
@@ -228,6 +235,7 @@
     <Compile Include="IDatabinder.cs" />
     <Compile Include="Id\Assigned.cs" />
     <Compile Include="Id\CounterGenerator.cs" />
+    <Compile Include="Id\Enhanced\TableGenerator.cs" />
     <Compile Include="Id\ForeignGenerator.cs" />
     <Compile Include="Id\GuidCombGenerator.cs" />
     <Compile Include="Id\GuidGenerator.cs" />
@@ -273,16 +281,21 @@
     <Compile Include="ISessionFactory.cs" />
     <Compile Include="ITransaction.cs" />
     <Compile Include="LazyInitializationException.cs" />
+    <Compile Include="Linq\Clauses\NhHavingClause.cs" />
     <Compile Include="Linq\Clauses\NhJoinClause.cs" />
     <Compile Include="Linq\Functions\DictionaryGenerator.cs" />
+    <Compile Include="Linq\Visitors\NhPartialEvaluatingExpressionTreeVisitor.cs" />
+    <Compile Include="Linq\QuerySourceNamer.cs" />
     <Compile Include="Linq\ReWriters\AddJoinsReWriter.cs" />
     <Compile Include="Linq\ReWriters\MoveOrderByToEndRewriter.cs" />
     <Compile Include="Linq\ReWriters\ResultOperatorRewriter.cs" />
     <Compile Include="Linq\ReWriters\ResultOperatorRewriterResult.cs" />
     <Compile Include="Linq\Visitors\AbstractJoinDetector.cs" />
     <Compile Include="Linq\Visitors\PossibleValueSet.cs" />
+    <Compile Include="Linq\Visitors\QuerySourceIdentifier.cs" />
     <Compile Include="Linq\Visitors\ResultOperatorProcessors\ProcessAggregateFromSeed.cs" />
     <Compile Include="Linq\Visitors\SelectAndOrderByJoinDetector.cs" />
+    <Compile Include="Linq\Visitors\SelectClauseNominator.cs" />
     <Compile Include="Linq\Visitors\WhereJoinDetector.cs" />
     <Compile Include="Loader\TopologicalSorter.cs" />
     <Compile Include="Loader\Loader.cs" />
@@ -500,6 +513,7 @@
     <Compile Include="ObjectDeletedException.cs" />
     <Compile Include="ObjectNotFoundException.cs" />
     <Compile Include="Param\CriteriaNamedParameterSpecification.cs" />
+    <Compile Include="Param\IPageableParameterSpecification.cs" />
     <Compile Include="Param\ParametersBackTrackExtensions.cs" />
     <Compile Include="Param\QuerySkipParameterSpecification.cs" />
     <Compile Include="Param\QueryTakeParameterSpecification.cs" />
@@ -528,6 +542,7 @@
     <Compile Include="Proxy\DefaultProxyFactory.cs" />
     <Compile Include="Proxy\DynamicProxy\DefaultArgumentHandler.cs" />
     <Compile Include="Proxy\DynamicProxy\DefaultMethodEmitter.cs" />
+    <Compile Include="Proxy\DynamicProxy\DefaultProxyAssemblyBuilder.cs" />
     <Compile Include="Proxy\DynamicProxy\DefaultProxyMethodBuilder.cs" />
     <Compile Include="Proxy\DynamicProxy\HashSetExtensions.cs" />
     <Compile Include="Proxy\DynamicProxy\IArgumentHandler.cs" />
@@ -537,6 +552,7 @@
     <Compile Include="Proxy\DynamicProxy\InvocationHandler.cs" />
     <Compile Include="Proxy\DynamicProxy\InvocationInfo.cs" />
     <Compile Include="Proxy\DynamicProxy\IProxy.cs" />
+    <Compile Include="Proxy\DynamicProxy\IProxyAssemblyBuilder.cs" />
     <Compile Include="Proxy\DynamicProxy\IProxyCache.cs" />
     <Compile Include="Proxy\DynamicProxy\IProxyMethodBuilder.cs" />
     <Compile Include="Proxy\DynamicProxy\OpCodesMap.cs" />
@@ -972,7 +988,7 @@
     <Compile Include="Linq\NhLinqExpressionReturnType.cs" />
     <Compile Include="Linq\DefaultQueryProvider.cs" />
     <Compile Include="Linq\Visitors\ExpressionKeyVisitor.cs" />
-    <Compile Include="Linq\GroupBy\GroupByAggregateDetectionVisitor.cs" />
+    <Compile Include="Linq\GroupBy\IsNonAggregatingGroupByDetectionVisitor.cs" />
     <Compile Include="Linq\GroupBy\AggregatingGroupByRewriter.cs" />
     <Compile Include="Linq\GroupJoin\AggregatingGroupJoinRewriter.cs" />
     <Compile Include="Linq\ResultOperators\ClientSideTransformOperator.cs" />
@@ -987,8 +1003,6 @@
     <Compile Include="Linq\Visitors\NhExpressionTreeVisitor.cs" />
     <Compile Include="Linq\Expressions\NhNewExpression.cs" />
     <Compile Include="Linq\NhQueryable.cs" />
-    <Compile Include="Linq\Visitors\NhThrowingExpressionTreeVisitor.cs" />
-    <Compile Include="Linq\Visitors\Nominator.cs" />
     <Compile Include="Linq\ResultOperators\NonAggregatingGroupBy.cs" />
     <Compile Include="Linq\GroupBy\NonAggregatingGroupByRewriter.cs" />
     <Compile Include="Linq\ParameterAggregator.cs" />

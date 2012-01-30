@@ -6,7 +6,7 @@ using NHibernate.Engine;
 using NHibernate.SqlCommand;
 using NHibernate.SqlTypes;
 using NHibernate.Util;
-using Environment=NHibernate.Cfg.Environment;
+using Environment = NHibernate.Cfg.Environment;
 
 namespace NHibernate.Driver
 {
@@ -216,18 +216,19 @@ namespace NHibernate.Driver
 
 		public void RemoveUnusedCommandParameters(IDbCommand cmd, SqlString sqlString)
 		{
+			if (!UseNamedPrefixInSql)
+				return; // Applicable only to named parameters
+
 			var formatter = GetSqlStringFormatter();
 			formatter.Format(sqlString);
+			var assignedParameterNames = new HashSet<string>(formatter.AssignedParameterNames);
 
 			cmd.Parameters
 				.Cast<IDbDataParameter>()
 				.Select(p => p.ParameterName)
-				.Except(formatter.AssignedParameterNames)
+				.Where(p => !assignedParameterNames.Contains(UseNamedPrefixInParameter ? p : FormatNameForSql(p)))
 				.ToList()
-				.ForEach(ununsedParameterName =>
-					{
-						cmd.Parameters.RemoveAt(ununsedParameterName);
-					});
+				.ForEach(unusedParameterName => cmd.Parameters.RemoveAt(unusedParameterName));
 		}
 
 		public virtual void ExpandQueryParameters(IDbCommand cmd, SqlString sqlString)
